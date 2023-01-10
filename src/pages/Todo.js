@@ -1,4 +1,15 @@
 import React, { useCallback, useState, useEffect } from "react";
+
+// React-Bootstrap
+import Dropdown from "react-bootstrap/Dropdown";
+import DropdownButton from "react-bootstrap/DropdownButton";
+// import { Dropdown, DropdownButton } from "react-bootstrap";
+import Spinner from "react-bootstrap/Spinner";
+
+// 1. 로그인 여부 파악
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router";
+
 import axios from "axios";
 import Form from "../components/Form";
 import List from "../components/List";
@@ -43,26 +54,65 @@ const Todo = () => {
   const [todoData, setTodoData] = useState([]);
   const [todoValue, setTodoValue] = useState("");
 
-  // axios 를 이용해서 서버에 API 호출
+  // 2. 로그인 상태 파악
+  const navigate = useNavigate();
+
+  const user = useSelector((state) => state.user);
+  // console.log("user", user);
   useEffect(() => {
+    // 사용자 로그인 여부 파악
+    if (user.accessToken === "") {
+      // 로그인이 안된 경우
+      alert("로그인을 하셔야 합니다.");
+      navigate("/login");
+    } else {
+      // 로그인이 된 경우
+    }
+  }, [user]);
+
+  // 목록 정렬 기능
+  const [sort, setSort] = useState("최신순");
+  useEffect(() => {
+    getList();
+  }, [sort]);
+
+  // axios 를 이용해서 서버에 API 호출
+  // 전체 목록 호출 메서드
+  const getList = () => {
+    // 로딩창 보여주기
+    setLoading(true);
+
+    const body = {
+      sort: sort,
+    };
     axios
-      .post("/api/post/list")
+      .post("/api/post/list", body)
       .then((response) => {
         // console.log(response.data);
         // 초기 할일데이터 셋팅
         if (response.data.success) {
           setTodoData(response.data.initTodo);
         }
+
+        // 로딩창 숨기기
+        setLoading(false);
       })
       .catch((error) => {
         console.log(error);
       });
+  };
+
+  useEffect(() => {
+    getList();
     // 초기데이터를 컴포넌트가 마운트 될 때 한번 실행한다.
   }, []);
 
   const deleteClick = useCallback(
     (id) => {
       if (window.confirm("정말 삭제하시겠습니까?")) {
+        // 로딩창 보여주기
+        setLoading(true);
+
         let body = {
           id: id,
         };
@@ -76,6 +126,9 @@ const Todo = () => {
             // 목록을 갱신한다.
             // axios 를 이용해서 MongoDB 삭제 진행
             setTodoData(newTodo);
+
+            // 로딩창 숨기기
+            setLoading(false);
           })
           .catch((error) => {
             console.log(error);
@@ -101,6 +154,9 @@ const Todo = () => {
       return;
     }
 
+    // 로딩창 보여주기
+    setLoading(true);
+
     // { id: 4, title: "할일 4", completed: false }
     // todoData 는 배열이고 배열의 요소들은 위처럼 구성해야 하니까
     // 객체{}로 만들어줌
@@ -109,6 +165,9 @@ const Todo = () => {
       id: Date.now(), // id 값은 배열.map 의 key 로 활용 예정, unique 값 만들기위해
       title: todoValue, // 할일 입력창의 내용을 추가
       completed: false, // 할일이 추가될 때 아직 완료한 것은 아니므로 false 초기화
+
+      // 1. DB 저장 : Server/Model/TodoModel Schema 업데이트(ObjectId)
+      uid: user.uid, // 여러명의 사용자 구분 용도
     };
     // 새로운 할일을 일단 복사하고, 복사된 배열에 추가하여서 업데이트
     // 기존 할일을 Destructuring 하여서 복사본 만듦
@@ -119,15 +178,19 @@ const Todo = () => {
       .then((res) => {
         // console.log(응답.data);
         if (res.data.success) {
-          setTodoData([...todoData, addTodo]);
+          // setTodoData([...todoData, addTodo]);
           // 새로운 할일을 추가했으므로 내용 입력창의 글자를 초기화
           setTodoValue("");
           // 로컬에 저장한다.(DB 예정)
           // localStorage.setItem("todoData", JSON.stringify([...todoData, addTodo]));
-
+          // 목록 재호출
+          getList();
           alert("할일이 등록되었습니다.");
         } else {
           alert("할일 등록 실패하였습니다.");
+
+          // 로딩창 숨기기
+          setLoading(false);
         }
       })
       .catch((error) => {
@@ -137,17 +200,35 @@ const Todo = () => {
 
   const deleteAllClick = () => {
     if (window.confirm("정말 삭제하시겠습니까?")) {
+      // 로딩창 보여주기
+      setLoading(true);
       // axios 를 이용하여 MongoDB 목록 비워줌.
       axios
         .post("/api/post/deleteall")
         .then(() => {
           setTodoData([]);
+          // 로딩창 숨기기
+          setLoading(false);
         })
         .catch((error) => console.log(error));
     }
     // 로컬에 저장한다.(DB 예정)
     // 자료를 지운다.(DB 초기화)
     // localStorage.clear();
+  };
+
+  // 로딩창 관련
+  const [loading, setLoading] = useState(false);
+  const loadingCSS = {
+    position: "fixed",
+    left: 0,
+    top: 0,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100vw",
+    height: "100vh",
+    backgroundColor: "rgba(0,0,0,0.5)",
   };
 
   return (
@@ -157,6 +238,16 @@ const Todo = () => {
           <h1>할일 목록</h1>
           <button onClick={deleteAllClick}>Delete All</button>
         </div>
+
+        {/* 옵션창 */}
+        <DropdownButton title={sort} variant="outline-secondary">
+          <Dropdown.Item onClick={() => setSort("최신순")}>
+            최신순
+          </Dropdown.Item>
+          <Dropdown.Item onClick={() => setSort("과거순")}>
+            과거순
+          </Dropdown.Item>
+        </DropdownButton>
 
         <List
           todoData={todoData}
@@ -169,6 +260,12 @@ const Todo = () => {
           addTodoSubmit={addTodoSubmit}
         />
       </div>
+      {/* 로딩창 샘플 */}
+      {loading && (
+        <div style={loadingCSS}>
+          <Spinner animation="border" variant="info" />
+        </div>
+      )}
     </div>
   );
 };
