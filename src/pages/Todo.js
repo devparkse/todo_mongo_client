@@ -4,7 +4,7 @@ import React, { useCallback, useState, useEffect } from "react";
 import Dropdown from "react-bootstrap/Dropdown";
 import DropdownButton from "react-bootstrap/DropdownButton";
 // import { Dropdown, DropdownButton } from "react-bootstrap";
-import Spinner from "react-bootstrap/Spinner";
+// import Spinner from "react-bootstrap/Spinner";
 
 // 1. 로그인 여부 파악
 import { useSelector } from "react-redux";
@@ -13,6 +13,7 @@ import { useNavigate } from "react-router";
 import axios from "axios";
 import Form from "../components/Form";
 import List from "../components/List";
+import Loading from "../components/Loading";
 
 /* 
   클래스/함수 컴포넌트(용도별로 2가지 케이스)
@@ -217,19 +218,7 @@ const Todo = () => {
     // localStorage.clear();
   };
 
-  // 로딩창 관련
   const [loading, setLoading] = useState(false);
-  const loadingCSS = {
-    position: "fixed",
-    left: 0,
-    top: 0,
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    width: "100vw",
-    height: "100vh",
-    backgroundColor: "rgba(0,0,0,0.5)",
-  };
 
   return (
     <div className="flex justify-center w-full">
@@ -261,11 +250,7 @@ const Todo = () => {
         />
       </div>
       {/* 로딩창 샘플 */}
-      {loading && (
-        <div style={loadingCSS}>
-          <Spinner animation="border" variant="info" />
-        </div>
-      )}
+      {loading && <Loading />}
     </div>
   );
 };
