@@ -2,8 +2,7 @@ import React from "react";
 import Spinner from "react-bootstrap/Spinner";
 
 const Loading = () => {
-  // 로딩창 관련
-  
+
   const loadingCSS = {
     position: "fixed",
     left: 0,

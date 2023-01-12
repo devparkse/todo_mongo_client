@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+
 import SignUpDiv from "../styles/signUpCss";
 // firebase 기본 코드를 포함
 import firebase from "../firebase";
@@ -77,6 +78,7 @@ const SignUp = () => {
               .then((response) => {
                 // console.log(response.data);
                 if (response.data.success) {
+                  firebase.auth().signOut();
                   // 회원정보 저장 성공
                   navigate("/login");
                 } else {

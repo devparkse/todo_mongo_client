@@ -14,6 +14,7 @@ import axios from "axios";
 import Form from "../components/Form";
 import List from "../components/List";
 import Loading from "../components/Loading";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 /* 
   클래스/함수 컴포넌트(용도별로 2가지 케이스)
@@ -74,17 +75,31 @@ const Todo = () => {
   // 목록 정렬 기능
   const [sort, setSort] = useState("최신순");
   useEffect(() => {
-    getList();
+    setSkip(0);
+    getList(search, 0);
   }, [sort]);
+
+  // 검색 기능
+  const [search, setSearch] = useState("");
+  const searchHandler = () => {
+    setSkip(0);
+    getList(search, 0);
+  };
 
   // axios 를 이용해서 서버에 API 호출
   // 전체 목록 호출 메서드
-  const getList = () => {
+  const getList = (_word = "", _stIndex = 0) => {
+    setSkip(0);
+    setSkipToggle(true);
     // 로딩창 보여주기
     setLoading(true);
 
     const body = {
       sort: sort,
+      search: _word,
+      // 사용자 구분 용도
+      uid: user.uid,
+      skip: _stIndex,
     };
     axios
       .post("/api/post/list", body)
@@ -93,6 +108,44 @@ const Todo = () => {
         // 초기 할일데이터 셋팅
         if (response.data.success) {
           setTodoData(response.data.initTodo);
+          // 시작하는 skip 번호를 갱신한다.
+          setSkip(response.data.initTodo.length);
+          if (response.data.initTodo.length < 5) {
+            setSkipToggle(false);
+          }
+        }
+
+        // 로딩창 숨기기
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  };
+  const getListGo = (_word = "", _stIndex = 0) => {
+    // 로딩창 보여주기
+    setLoading(true);
+
+    const body = {
+      sort: sort,
+      search: _word,
+      // 사용자 구분 용도
+      uid: user.uid,
+      skip: _stIndex,
+    };
+    axios
+      .post("/api/post/list", body)
+      .then((response) => {
+        // console.log(response.data);
+        // 초기 할일데이터 셋팅
+        if (response.data.success) {
+          const newArr = response.data.initTodo;
+          setTodoData([...todoData, ...newArr]);
+          // 시작하는 skip 번호를 갱신한다.
+          setSkip(skip + newArr.length);
+          if (newArr.length < 5) {
+            setSkipToggle(false);
+          }
         }
 
         // 로딩창 숨기기
@@ -103,8 +156,16 @@ const Todo = () => {
       });
   };
 
+  // 목록 갯수 출력
+  const [skip, setSkip] = useState(0);
+  const [skipToggle, setSkipToggle] = useState(true);
+
+  const getListMore = () => {
+    getListGo(search, skip);
+  };
+
   useEffect(() => {
-    getList();
+    getList("", skip);
     // 초기데이터를 컴포넌트가 마운트 될 때 한번 실행한다.
   }, []);
 
@@ -179,20 +240,18 @@ const Todo = () => {
       .then((res) => {
         // console.log(응답.data);
         if (res.data.success) {
-          // setTodoData([...todoData, addTodo]);
-          // 새로운 할일을 추가했으므로 내용 입력창의 글자를 초기화
           setTodoValue("");
-          // 로컬에 저장한다.(DB 예정)
-          // localStorage.setItem("todoData", JSON.stringify([...todoData, addTodo]));
           // 목록 재호출
-          getList();
+          setSkip(0);
+          getList("", 0);
+
           alert("할일이 등록되었습니다.");
         } else {
           alert("할일 등록 실패하였습니다.");
-
-          // 로딩창 숨기기
-          setLoading(false);
         }
+
+        // 로딩창 숨기기
+        setLoading(false);
       })
       .catch((error) => {
         console.log(error);
@@ -207,7 +266,7 @@ const Todo = () => {
       axios
         .post("/api/post/deleteall")
         .then(() => {
-          setTodoData([]);
+          setSkip(0);
           // 로딩창 숨기기
           setLoading(false);
         })
@@ -218,6 +277,7 @@ const Todo = () => {
     // localStorage.clear();
   };
 
+  // 로딩창 관련
   const [loading, setLoading] = useState(false);
 
   return (
@@ -228,21 +288,49 @@ const Todo = () => {
           <button onClick={deleteAllClick}>Delete All</button>
         </div>
 
-        {/* 옵션창 */}
-        <DropdownButton title={sort} variant="outline-secondary">
-          <Dropdown.Item onClick={() => setSort("최신순")}>
-            최신순
-          </Dropdown.Item>
-          <Dropdown.Item onClick={() => setSort("과거순")}>
-            과거순
-          </Dropdown.Item>
-        </DropdownButton>
+        <div className="flex justify-between mb-3">
+          <DropdownButton title={sort} variant="outline-secondary">
+            <Dropdown.Item onClick={() => setSort("최신순")}>
+              최신순
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => setSort("과거순")}>
+              과거순
+            </Dropdown.Item>
+          </DropdownButton>
+          <div>
+            <label className="mr-2">검색어</label>
+            <input
+              type="text"
+              placeholder="검색어를 입력하세요"
+              className="border-2"
+              value={search}
+              onChange={(e) => setSearch(e.currentTarget.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  searchHandler();
+                }
+              }}
+            />
+          </div>
+        </div>
 
         <List
           todoData={todoData}
           setTodoData={setTodoData}
           deleteClick={deleteClick}
         />
+
+        {skipToggle && (
+          <div className="flex justify-end">
+            <button
+              className="p-2 text-blue-400 border-2 border-blue-400 rounded hover:text-white hover:bg-blue-400"
+              onClick={() => getListMore()}
+            >
+              더보기
+            </button>
+          </div>
+        )}
+
         <Form
           todoValue={todoValue}
           setTodoValue={setTodoValue}
@@ -250,7 +338,7 @@ const Todo = () => {
         />
       </div>
       {/* 로딩창 샘플 */}
-      {loading && <Loading />}
+      {loading && <LoadingSpinner />}
     </div>
   );
 };
